@@ -64,6 +64,7 @@ class EntityTranslateView(viewsets.ViewSet):
 
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
+    access_area = "pim_translator.translate"
 
     # Set by urls.py initkwargs.
     entity_type: str = ""
@@ -125,6 +126,7 @@ class BulkTranslateView(viewsets.ViewSet):
 
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
+    access_area = "pim_translator.translate"
 
     def create(self, request: Request, shop_idx: str) -> Response:
         try:
@@ -181,6 +183,7 @@ class BulkJobViewSet(viewsets.ViewSet):
 
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
+    access_area = "pim_translator.translate"
 
     def list(self, request: Request, shop_idx: str) -> Response:
         status_filter = request.query_params.get("status")
