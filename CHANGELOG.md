@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+- Access: the module declares its own access areas on its AppConfig and its admin views (copied from the
+  entirius-django-access defaults; behaviour unchanged).
+
 ## 2.0.0 — 2026-07-10
 
 - Initial public release: AI translation bridge for PIM entities — extracts

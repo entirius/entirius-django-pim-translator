@@ -25,6 +25,8 @@ single source of truth for jobs, costs, and usage.
 - Never rename the package / Django app_label `django_pim_translator` — it is a schema contract.
 - Migrations are part of the public contract — never edit an already released migration.
 - Default: do not commit — git is the user's call.
+- Access: areas live on the AppConfig (`access_areas`, `access_route_rules`), every admin view carries
+  `access_area`; a new admin route without one fails `tests/test_access_ownership.py`.
 
 ## Architecture
 
