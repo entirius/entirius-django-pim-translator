@@ -67,6 +67,8 @@ AI_TOOLBOX_MAX_RETRIES = 3                        # optional, max retry attempts
 
 `AI_TOOLBOX_BASE_URL` and `AI_TOOLBOX_API_KEY` are required — the module fails loud if either is missing.
 
+With `AI_TOOLBOX_ENABLED = False` the toolbox is switched off on purpose: every endpoint answers 503 `AI_TOOLBOX_DISABLED` and `poll_and_apply_job` logs a warning and returns without polling.
+
 API keys are generated in the AI Toolbox admin — see its configuration guide.
 
 ## Key Design Decisions
