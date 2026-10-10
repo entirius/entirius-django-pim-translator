@@ -3,25 +3,34 @@ title: PIM Translator
 description: AI translation bridge for PIM entities — extracts, translates via AI Toolbox, applies back.
 ---
 
-PIM AI translation bridge. Extracts translatable fields from PIM entities, forwards them to the remote `entirius-ai-toolbox` via HTTP, and writes translated text back. Zero local Django models — the toolbox is the single source of truth for jobs, costs, and usage.
+PIM AI translation bridge. Extracts translatable fields from PIM entities, forwards them to the remote AI toolbox via HTTP, and writes translated text back. Zero local Django models — the toolbox is the single source of truth for jobs, costs, and usage.
 
 **Tech:** Python >=3.11 · Django >=5.0 · DRF · Pydantic · httpx · nh3
 
 ## Architecture
 
 ```
-django-pim-translator
+src/django_pim_translator/
+├── apps.py                    # DjangoPimTranslatorConfig
+├── settings.py                # EntityType, translatable field lists; re-exports AI_TOOLBOX_*, LANGUAGE_CODE_MAP
 ├── clients/
-│   ├── toolbox.py          # httpx HTTP client for AI toolbox API
-│   └── errors.py           # ToolboxError hierarchy
+│   └── __init__.py            # Re-exports ToolboxClient + errors from django_utils_translator
 ├── services/
-│   ├── extractor.py        # Pull translatable fields from PIM entities
-│   ├── applicator.py       # Write translations back to PIM
-│   └── translator.py       # Orchestrator: extract → toolbox → apply
-├── schemas/                # Request/response Pydantic models
-├── api/                    # DRF ViewSets + URL patterns
-└── tasks/
-    └── apply_job.py        # Celery: poll toolbox → apply on completion
+│   ├── extractor.py           # 3 functions + EXTRACTORS registry
+│   ├── applicator.py          # 3 functions + APPLICATORS registry
+│   ├── translator.py          # Orchestrator: extract → toolbox → apply
+│   └── importer.py            # Import official translations (no toolbox) → applicator
+├── schemas/
+│   ├── requests.py            # TranslateEntityRequest, BulkTranslateRequest
+│   └── responses.py           # TranslateEntityResponse, BulkTranslate*Response
+├── api/
+│   ├── views.py               # EntityTranslateView, BulkTranslateView, BulkJobViewSet
+│   └── urls.py                # URL patterns
+├── tasks/
+│   └── apply_job.py           # Celery: poll toolbox → apply translations
+└── management/commands/
+    ├── translate_pim.py        # CLI for bulk AI translation
+    └── import_translations.py  # CLI: import official translations from JSONL (no AI)
 ```
 
 Layer rule: `API → translator (orchestrator) → extractor/applicator → PIM models`.
@@ -41,7 +50,7 @@ CMS → POST /bulk/translate/ (or single-entity endpoint)
 
 ## API
 
-All endpoints: JWT + `IsAdminUser`. Prefix: `/api/pim-translator/v2/admin/{channel_idx}/`
+All endpoints: JWT + `IsAdminUser`. Prefix: `/api/pim-translator/v2/admin/{shop_idx}/`
 
 | Method | Path | Summary |
 |--------|------|---------|
@@ -68,6 +77,14 @@ AI_TOOLBOX_MAX_RETRIES = 3                        # optional, max retry attempts
 `AI_TOOLBOX_BASE_URL` and `AI_TOOLBOX_API_KEY` are required — the module fails loud if either is missing.
 
 API keys are generated in the AI Toolbox admin — see its configuration guide.
+
+## Toolbox Communication
+
+The AI toolbox runs on a separate machine. Communication via HTTP:
+
+- **ToolboxClient** (from `entirius-django-utils-translator`) sends requests with `X-API-Key` header
+- Settings: `AI_TOOLBOX_BASE_URL`, `AI_TOOLBOX_API_KEY` in the host service settings
+- Toolbox endpoints used: `/translate/`, `/estimate/`, `/jobs/`, `/jobs/{id}/`, `/jobs/{id}/results/`
 
 ## Key Design Decisions
 
