@@ -1,6 +1,6 @@
 ---
 title: Management Commands
-description: CLI commands for bulk PIM AI translation.
+description: CLI commands for bulk PIM AI translation and for importing official translations.
 ---
 
 ## translate_pim
@@ -33,6 +33,26 @@ python manage.py translate_pim --channel default-europe --target de --type categ
 ```
 
 The command delegates to the same `translator.py` orchestrator used by the API — extract → toolbox → apply.
+
+## import_translations
+
+Imports official translations — no AI, no toolbox call.
+
+When translations already exist (e.g. scraped from a foreign-language sibling site, joined by SKU),
+skip the toolbox and feed the applicator directly:
+
+```bash
+python manage.py import_translations \
+    --channel <channel_idx> --target en --file translations.jsonl --dry-run
+```
+
+Input is JSONL — one row per product: `{"sku": "SKU-1", "fields": {"name": "...",
+"description": "<p>...</p>"}}`. Each `fields` key MUST equal a PIM system feature idx
+(name, description, short_description). `importer.py` resolves SKU → product_id, builds
+`product_attr.{id}.{feature_idx}` items, and calls `apply_product_translations` — so
+HTML sanitize, `overridden_langs`, and row locking are inherited. Null/blank values are
+skipped (never overwrite PIM with empties). `--dry-run` reports unmatched SKUs and
+products with no existing attribute row (which the applicator would silently skip).
 
 ## Notes
 

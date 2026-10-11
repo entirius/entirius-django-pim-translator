@@ -1,7 +1,21 @@
 [project]
 name = "entirius-django-pim-translator"
 version = "2.0.0"
-description = "PIM AI translation bridge — communicates with the AI toolbox via HTTP"
+description = "AI translation of PIM catalogue data for Entirius: products, categories, features and attributes"
+keywords = ["django", "pim", "translation", "ai", "localization", "ecommerce", "entirius"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Framework :: Django",
+    "Framework :: Django :: 5.2",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business",
+]
 authors = [{ name = "Entirius" }]
 readme = "README.md"
 requires-python = ">=3.11"
@@ -23,7 +37,11 @@ dev  = ["ruff", "pre-commit"]
 test = ["pytest", "pytest-django", "respx>=0.21", "dj-database-url", "psycopg[binary]"]
 
 [project.urls]
+Homepage = "https://docs.entirius.com/"
+Documentation = "https://github.com/entirius/entirius-django-pim-translator/tree/develop/docs"
 Repository = "https://github.com/entirius/entirius-django-pim-translator"
+Changelog = "https://github.com/entirius/entirius-django-pim-translator/blob/develop/CHANGELOG.md"
+Issues = "https://github.com/entirius/entirius-django-pim-translator/issues"
 
 [build-system]
 requires = ["hatchling"]
