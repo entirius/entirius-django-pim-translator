@@ -67,7 +67,10 @@ Toolbox communication: `translator → ToolboxClient (django_utils_translator) �
 
 ## Gotchas
 
-- `AI_TOOLBOX_BASE_URL` and `AI_TOOLBOX_API_KEY` are required — module fails loud if missing.
+- `AI_TOOLBOX_BASE_URL` and `AI_TOOLBOX_API_KEY` are required while the toolbox is enabled — module fails loud
+  if missing.
+- `AI_TOOLBOX_ENABLED = False` (the switch of `entirius-django-utils`): the endpoints answer 503
+  `AI_TOOLBOX_DISABLED`; `poll_and_apply_job` logs a warning and returns without polling or raising.
 - PIM language codes (gb, us) are mapped to provider codes (EN-GB, EN-US) via `LANGUAGE_CODE_MAP`.
 - Category `url_key_t9n` is auto-generated from translated name — never AI-translated.
 - Inherited description features are skipped by extractor (would be clobbered by inheritance sync).
