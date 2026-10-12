@@ -1,6 +1,6 @@
 [project]
 name = "entirius-django-pim-translator"
-version = "2.0.0"
+version = "2.1.0"
 description = "AI translation of PIM catalogue data for Entirius: products, categories, features and attributes"
 keywords = ["django", "pim", "translation", "ai", "localization", "ecommerce", "entirius"]
 classifiers = [
