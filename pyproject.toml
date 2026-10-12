@@ -28,8 +28,8 @@ dependencies = [
     "drf-spectacular>=0.27",
     "pydantic>=2.0",
     "entirius-django-pim>=3.0.0",
-    "entirius-django-utils>=2.0.0",
-    "entirius-django-utils-translator>=2.0.0",
+    "entirius-django-utils>=2.3.0",
+    "entirius-django-utils-translator>=2.2.0",
 ]
 
 [project.optional-dependencies]
