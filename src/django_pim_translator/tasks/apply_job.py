@@ -10,6 +10,7 @@ import logging
 
 from celery import shared_task
 from django.db import DatabaseError, OperationalError
+from django_utils.toolbox import ToolboxDisabledError
 
 from django_pim_translator.clients import ToolboxClient, ToolboxError
 from django_pim_translator.services.applicator import APPLICATORS
@@ -28,9 +29,14 @@ def poll_and_apply_job(
     """Poll toolbox job status via HTTP every 30s.
 
     When completed: fetch results via HTTP, apply translations to PIM (local ORM).
-    Max retries=120 x 30s = 1 hour timeout for bulk jobs.
+    Max retries=120 x 30s = 1 hour timeout for bulk jobs. Returns without polling while the toolbox is switched off.
     """
-    with ToolboxClient(channel_idx, max_retries=1) as client:
+    try:
+        client = ToolboxClient(channel_idx, max_retries=1)
+    except ToolboxDisabledError:
+        logger.warning("Translation job %s not polled: AI toolbox disabled", job_id)
+        return
+    with client:
         try:
             job = client.get_job(job_id)
         except ToolboxError as exc:
