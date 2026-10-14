@@ -123,7 +123,7 @@ def translate_entity(
     mapped_source = map_to_provider_code(source_lang)
     total_chars = sum(len(item["text"]) for item in items)
 
-    with ToolboxClient(channel_idx) as client:
+    with ToolboxClient() as client:
         if dry_run:
             return _estimate_entity(
                 client, items, target_languages, mapped_source, provider, entity_type, entity_id, skipped, total_chars
@@ -288,11 +288,9 @@ def translate_bulk(
 
     mapped_source = map_to_provider_code(source_lang)
 
-    with ToolboxClient(channel_idx) as client:
+    with ToolboxClient() as client:
         if dry_run:
-            return _estimate_bulk(
-                client, items_per_lang, target_languages, provider, entity_type, force, all_items, channel_idx
-            )
+            return _estimate_bulk(client, items_per_lang, target_languages, provider, entity_type, force, all_items)
         return _create_jobs_bulk(
             client,
             items_per_lang,
@@ -337,7 +335,6 @@ def _estimate_bulk_filtered(
     items_per_lang: dict[str, list[dict]],
     target_languages: list[str],
     provider: str | None,
-    channel_idx: str,
 ) -> tuple[list[LanguageCostEstimate], int, int]:
     """Estimate when force=False — parallel per-language toolbox calls."""
 
@@ -347,7 +344,7 @@ def _estimate_bulk_filtered(
         if not lang_items:
             return LanguageCostEstimate(language=lang, items=0, chars=0, cost_usd=Decimal("0"))
         mapped_target = map_to_provider_code(lang)
-        with ToolboxClient(channel_idx) as thread_client:
+        with ToolboxClient() as thread_client:
             estimate = thread_client.estimate(items=lang_items, target_languages=[mapped_target], provider=provider)
         per_lang_data = estimate.get("per_language", [])
         cost = per_lang_data[0].get("estimated_cost_usd") if per_lang_data else None
@@ -374,15 +371,12 @@ def _estimate_bulk(
     entity_type: str,
     force: bool,
     all_items: list[dict],
-    channel_idx: str = "",
 ) -> BulkTranslateEstimateResponse:
     """Estimate bulk cost via toolbox /estimate/."""
     if force:
         per_language, total_items, total_chars = _estimate_bulk_forced(client, all_items, target_languages, provider)
     else:
-        per_language, total_items, total_chars = _estimate_bulk_filtered(
-            items_per_lang, target_languages, provider, channel_idx
-        )
+        per_language, total_items, total_chars = _estimate_bulk_filtered(items_per_lang, target_languages, provider)
 
     total_cost = sum((r.cost_usd or Decimal("0")) for r in per_language)
 

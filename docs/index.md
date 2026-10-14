@@ -40,10 +40,10 @@ Layer rule: `API → translator (orchestrator) → extractor/applicator → PIM 
 ```
 CMS → POST /bulk/translate/ (or single-entity endpoint)
   → extractor: pull field values from PIM entity
-  → ToolboxClient: POST /api/ai-translator/v2/admin/{channel_idx}/estimate/
-  → (if not estimate-only) ToolboxClient: POST /api/ai-translator/v2/admin/{channel_idx}/jobs/
-  → Celery poll: GET /api/ai-translator/v2/admin/{channel_idx}/jobs/{id}/
-  → On completion: GET /api/ai-translator/v2/admin/{channel_idx}/jobs/{id}/results/
+  → ToolboxClient: POST /api/ai-translator/v2/admin/{AI_TOOLBOX_CHANNEL}/estimate/
+  → (if not estimate-only) ToolboxClient: POST /api/ai-translator/v2/admin/{AI_TOOLBOX_CHANNEL}/jobs/
+  → Celery poll: GET /api/ai-translator/v2/admin/{AI_TOOLBOX_CHANNEL}/jobs/{id}/
+  → On completion: GET /api/ai-translator/v2/admin/{AI_TOOLBOX_CHANNEL}/jobs/{id}/results/
   → applicator: write translated values back via select_for_update()
   → overridden_langs: append target language to prevent inheritance clobbering
 ```
@@ -59,8 +59,8 @@ All endpoints: JWT + `IsAdminUser`. Prefix: `/api/pim-translator/v2/admin/{shop_
 | POST | `features/{idx}/translate/` | Translate single feature |
 | POST | `attributes/{feature_idx}/{idx}/translate/` | Translate single attribute |
 | POST | `bulk/translate/` | Bulk translate (async job or `dry_run`) |
-| GET | `bulk/jobs/` | List jobs (proxied from toolbox) |
-| GET | `bulk/jobs/{pk}/` | Job status (proxied from toolbox) |
+| GET | `bulk/jobs/` | List this sales channel's jobs (proxied from toolbox, filtered by `metadata.channel_idx`) |
+| GET | `bulk/jobs/{pk}/` | Job status (proxied from toolbox; 404 for another channel's job) |
 
 All POST endpoints accept `dry_run: true` for cost estimation without calling the provider.
 
@@ -70,6 +70,7 @@ All POST endpoints accept `dry_run: true` for cost estimation without calling th
 # settings_local.py
 AI_TOOLBOX_BASE_URL = "http://ai-toolbox:8001"   # required
 AI_TOOLBOX_API_KEY = "ent_prod_..."               # required
+AI_TOOLBOX_CHANNEL = "my-instance"                 # required, the instance channel on the toolbox
 AI_TOOLBOX_TIMEOUT = 60                           # optional, request timeout in seconds (default: 60)
 AI_TOOLBOX_MAX_RETRIES = 3                        # optional, max retry attempts (default: 3)
 ```

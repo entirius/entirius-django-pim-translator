@@ -29,6 +29,9 @@ SHOP = "test-shop"
 BASE = f"/api/pim-translator/v2/admin/{SHOP}"
 
 
+JOBS_CLIENT = "django_pim_translator.services.jobs.ToolboxClient"
+
+
 def url(path: str) -> str:
     return f"{BASE}/{path}"
 
@@ -214,29 +217,38 @@ class TestBulkJobViewSet:
     def test_auth_trifecta_retrieve(self, api_client, regular_client, admin_client):
         _auth_trifecta(api_client, regular_client, admin_client, "get", url("bulk/jobs/fake-uuid/"))
 
-    def test_list_returns_toolbox_payload(self, admin_client):
-        mock_payload = {"count": 1, "results": [{"id": "abc", "status": "completed"}]}
+    def test_list_keeps_only_jobs_of_this_sales_channel(self, admin_client):
+        own = {"id": "own", "status": "completed", "metadata": {"channel_idx": SHOP}}
+        other = {"id": "other", "status": "completed", "metadata": {"channel_idx": "other-shop"}}
+        legacy = {"id": "legacy", "status": "completed", "metadata": None}
 
-        with patch(
-            "django_pim_translator.api.views.ToolboxClient",
-        ) as MockClient:
+        with patch(JOBS_CLIENT) as MockClient:
             instance = MockClient.return_value.__enter__.return_value
-            instance.list_jobs.return_value = mock_payload
+            instance.list_jobs.return_value = {"count": 3, "results": [own, other, legacy]}
 
             response = admin_client.get(url("bulk/jobs/"))
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["count"] == 1
+        assert [job["id"] for job in response.json()["results"]] == ["own"]
+        assert "count" not in response.json()
+
+    def test_job_calls_use_the_instance_channel(self, admin_client):
+        with patch(JOBS_CLIENT) as MockClient:
+            MockClient.return_value.__enter__.return_value.list_jobs.return_value = {"results": []}
+
+            admin_client.get(url("bulk/jobs/"))
+
+        MockClient.assert_called_once_with()
 
     def test_invalid_page_returns_400(self, admin_client):
         response = admin_client.get(url("bulk/jobs/") + "?page=abc")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert response.json()["error"] == "VALIDATION_ERROR"
 
-    def test_retrieve_returns_toolbox_payload(self, admin_client):
-        mock_job = {"id": "job-uuid", "status": "completed", "entity_type": "product"}
+    def test_retrieve_returns_own_job(self, admin_client):
+        mock_job = {"id": "job-uuid", "status": "completed", "metadata": {"channel_idx": SHOP}}
 
-        with patch("django_pim_translator.api.views.ToolboxClient") as MockClient:
+        with patch(JOBS_CLIENT) as MockClient:
             instance = MockClient.return_value.__enter__.return_value
             instance.get_job.return_value = mock_job
 
@@ -245,10 +257,20 @@ class TestBulkJobViewSet:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == "job-uuid"
 
+    def test_retrieve_other_channels_job_returns_404(self, admin_client):
+        mock_job = {"id": "job-uuid", "status": "completed", "metadata": {"channel_idx": "other-shop"}}
+
+        with patch(JOBS_CLIENT) as MockClient:
+            MockClient.return_value.__enter__.return_value.get_job.return_value = mock_job
+
+            response = admin_client.get(url("bulk/jobs/job-uuid/"))
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
     def test_toolbox_not_found_returns_404(self, admin_client):
         from django_pim_translator.clients import ToolboxNotFoundError
 
-        with patch("django_pim_translator.api.views.ToolboxClient") as MockClient:
+        with patch(JOBS_CLIENT) as MockClient:
             instance = MockClient.return_value.__enter__.return_value
             instance.get_job.side_effect = ToolboxNotFoundError("job not found")
 
@@ -257,7 +279,7 @@ class TestBulkJobViewSet:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_list_status_filter_passed_to_toolbox(self, admin_client):
-        with patch("django_pim_translator.api.views.ToolboxClient") as MockClient:
+        with patch(JOBS_CLIENT) as MockClient:
             instance = MockClient.return_value.__enter__.return_value
             instance.list_jobs.return_value = {"results": []}
 

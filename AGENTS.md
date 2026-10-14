@@ -41,6 +41,7 @@ src/django_pim_translator/
 │   ├── extractor.py           # 3 functions + EXTRACTORS registry
 │   ├── applicator.py          # 3 functions + APPLICATORS registry
 │   ├── translator.py          # Orchestrator: extract → toolbox → apply
+│   ├── jobs.py                # Job list/detail proxy, scoped to the sales channel by job metadata
 │   └── importer.py            # Import official translations (no toolbox) → applicator
 ├── schemas/
 │   ├── requests.py            # TranslateEntityRequest, BulkTranslateRequest
@@ -67,8 +68,14 @@ Toolbox communication: `translator → ToolboxClient (django_utils_translator) �
 
 ## Gotchas
 
-- `AI_TOOLBOX_BASE_URL` and `AI_TOOLBOX_API_KEY` are required while the toolbox is enabled — module fails loud
-  if missing.
+- `AI_TOOLBOX_BASE_URL`, `AI_TOOLBOX_API_KEY` and `AI_TOOLBOX_CHANNEL` are required while the toolbox is
+  enabled — module fails loud if missing.
+- Every toolbox call uses the instance channel — `ToolboxClient()` (`AI_TOOLBOX_CHANNEL`), never the URL's
+  `shop_idx`. The sales channel travels in job `metadata.channel_idx`; `poll_and_apply_job` gets it as an argument.
+- `bulk/jobs/` filters the toolbox page by `metadata.channel_idx` — no `count`; `next`/`previous` are toolbox
+  page cursors, so a page can come back short or empty. Another channel's job detail answers 404. Jobs created
+  before the switch (on the sales-channel toolbox channel) are not listed; their poll task gets a toolbox 404
+  and gives up without retrying.
 - `AI_TOOLBOX_ENABLED = False` (the switch of `entirius-django-utils`): the endpoints answer 503
   `AI_TOOLBOX_DISABLED`; `poll_and_apply_job` logs a warning and returns without polling or raising.
 - PIM language codes (gb, us) are mapped to provider codes (EN-GB, EN-US) via `LANGUAGE_CODE_MAP`.
