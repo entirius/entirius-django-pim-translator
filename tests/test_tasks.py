@@ -247,3 +247,32 @@ class TestApplyResults:
 
         kwargs = mock_apply_fn.call_args[1]
         assert "channel_idx" not in kwargs
+
+
+# ---------------------------------------------------------------------------
+# Instance channel
+# ---------------------------------------------------------------------------
+
+
+@patch("django_pim_translator.tasks.apply_job.ToolboxClient")
+def test_poll_uses_instance_channel(MockClient):
+    from django_pim_translator.tasks.apply_job import poll_and_apply_job
+
+    MockClient.return_value.get_job.return_value = {"status": "failed"}
+
+    poll_and_apply_job.run("job-1", "product", "sales-shop", "de")
+
+    MockClient.assert_called_once_with(max_retries=1)
+
+
+@patch("django_pim_translator.tasks.apply_job.ToolboxClient")
+def test_poll_gives_up_when_job_not_found(MockClient):
+    from django_pim_translator.clients import ToolboxNotFoundError
+    from django_pim_translator.tasks.apply_job import poll_and_apply_job
+
+    MockClient.return_value.__enter__.return_value.get_job.side_effect = ToolboxNotFoundError("Job not found")
+
+    with patch.object(poll_and_apply_job, "retry") as mock_retry:
+        poll_and_apply_job.run("job-1", "product", "sales-shop", "de")
+
+    mock_retry.assert_not_called()

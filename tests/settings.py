@@ -50,3 +50,4 @@ ROOT_URLCONF = "django_pim_translator.urls"
 # Toolbox test settings — overridden in tests via respx mocking.
 AI_TOOLBOX_BASE_URL = "https://test-toolbox.internal:8000"
 AI_TOOLBOX_API_KEY = "ent_test_fake_key_for_testing"
+AI_TOOLBOX_CHANNEL = "test-instance"  # the instance channel — never the sales channel in the URL

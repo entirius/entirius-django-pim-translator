@@ -5,7 +5,7 @@
 """DRF views for django-pim-translator.
 
 Auth: standard Volkanos JWT + IsAdminUser (NOT toolbox auth).
-Outbound calls to toolbox use API key via ToolboxClient.
+Outbound calls to toolbox use API key via ToolboxClient, always on the instance channel (AI_TOOLBOX_CHANNEL).
 """
 
 from __future__ import annotations
@@ -23,13 +23,12 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from django_pim_translator.clients import ToolboxClient
 from django_pim_translator.schemas.requests import BulkTranslateRequest, TranslateEntityRequest
 from django_pim_translator.schemas.responses import (
     BulkTranslateEstimateResponse,
     BulkTranslateJobResponse,
 )
-from django_pim_translator.services import translator
+from django_pim_translator.services import jobs, translator
 
 logger = logging.getLogger("process")
 
@@ -160,7 +159,8 @@ class BulkTranslateView(viewsets.ViewSet):
     list=extend_schema(
         tags=["Translation Jobs"],
         summary="List translation jobs",
-        description="List translation jobs for this channel (proxied from toolbox).",
+        description="List translation jobs of this sales channel (proxied from toolbox, filtered by job metadata). "
+        "No count; next/previous are toolbox page cursors (a page may hold fewer jobs, even none).",
         parameters=[
             _CHANNEL_PARAM,
             OpenApiParameter(name="status", location="query", description="Filter by job status", required=False),
@@ -170,7 +170,7 @@ class BulkTranslateView(viewsets.ViewSet):
     retrieve=extend_schema(
         tags=["Translation Jobs"],
         summary="Get job detail",
-        description="Get translation job detail (proxied from toolbox).",
+        description="Get translation job detail (proxied from toolbox). Another channel's job answers 404.",
         parameters=[
             _CHANNEL_PARAM,
             OpenApiParameter(name="pk", location="path", description="Job UUID", required=True),
@@ -196,8 +196,7 @@ class BulkJobViewSet(viewsets.ViewSet):
             )
 
         try:
-            with ToolboxClient(shop_idx) as client:
-                result = client.list_jobs(status=status_filter, page=page)
+            result = jobs.list_jobs(shop_idx, status=status_filter, page=page)
         except ToolboxError as exc:
             return handle_toolbox_error(exc)
 
@@ -205,8 +204,7 @@ class BulkJobViewSet(viewsets.ViewSet):
 
     def retrieve(self, request: Request, shop_idx: str, pk: str | None = None) -> Response:
         try:
-            with ToolboxClient(shop_idx) as client:
-                result = client.get_job(pk)
+            result = jobs.get_job(shop_idx, pk)
         except ToolboxError as exc:
             return handle_toolbox_error(exc)
 

@@ -198,3 +198,59 @@ class TestResolveEntityPk:
 
             with pytest.raises((ValueError, LookupError)):
                 _resolve_entity_pk("product", "NO-SKU", "test-shop")
+
+
+# ---------------------------------------------------------------------------
+# Instance channel: toolbox calls never use the sales channel
+# ---------------------------------------------------------------------------
+
+TRANSLATOR = "django_pim_translator.services.translator"
+ITEMS = [{"key": "product.1.name", "text": "Chair"}]
+
+
+class TestInstanceChannel:
+    def test_entity_job_uses_instance_channel_and_tags_sales_channel(self):
+        from django_pim_translator.services.translator import translate_entity
+
+        with (
+            patch(f"{TRANSLATOR}._resolve_source_language", return_value="pl"),
+            patch(f"{TRANSLATOR}._extract_entity_items", return_value=(ITEMS, 0, 1)),
+            patch(f"{TRANSLATOR}.ToolboxClient") as MockClient,
+            patch("django_pim_translator.tasks.apply_job.poll_and_apply_job") as mock_task,
+        ):
+            client = MockClient.return_value.__enter__.return_value
+            client.create_job.return_value = {"id": "job-1"}
+            translate_entity("sales-shop", "product", 1, ["de"])
+
+        MockClient.assert_called_once_with()
+        assert client.create_job.call_args.kwargs["metadata"]["channel_idx"] == "sales-shop"
+        assert mock_task.delay.call_args.kwargs["channel_idx"] == "sales-shop"
+
+    def test_bulk_estimate_uses_instance_channel(self):
+        from django_pim_translator.services.translator import translate_bulk
+
+        with (
+            patch(f"{TRANSLATOR}._resolve_source_language", return_value="pl"),
+            patch.dict(f"{TRANSLATOR}.EXTRACTORS", {"feature": MagicMock(return_value=(ITEMS, 0))}),
+            patch(f"{TRANSLATOR}.ToolboxClient") as MockClient,
+        ):
+            MockClient.return_value.__enter__.return_value.estimate.return_value = {"per_language": []}
+            translate_bulk("sales-shop", "feature", ["de", "fr"], dry_run=True)
+
+        assert MockClient.call_args_list and all(call.args == () for call in MockClient.call_args_list)
+
+    def test_bulk_job_tags_sales_channel(self):
+        from django_pim_translator.services.translator import translate_bulk
+
+        with (
+            patch(f"{TRANSLATOR}._resolve_source_language", return_value="pl"),
+            patch.dict(f"{TRANSLATOR}.EXTRACTORS", {"feature": MagicMock(return_value=(ITEMS, 0))}),
+            patch(f"{TRANSLATOR}.ToolboxClient") as MockClient,
+            patch("django_pim_translator.tasks.apply_job.poll_and_apply_job"),
+        ):
+            client = MockClient.return_value.__enter__.return_value
+            client.create_job.return_value = {"id": "job-1"}
+            translate_bulk("sales-shop", "feature", ["de"], force=True)
+
+        MockClient.assert_called_once_with()
+        assert client.create_job.call_args.kwargs["metadata"]["channel_idx"] == "sales-shop"
